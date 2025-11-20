@@ -2,9 +2,6 @@ import tkinter as tk
 from tkinter import messagebox
 import numpy as np
 
-
-# --- Lógica Matemática (Algoritmo "Na Unha") ---
-
 def resolver_gauss_manual(A_in, B_in):
     """
     Resolve Ax = B implementando manualmente a Eliminação Gaussiana
@@ -42,7 +39,6 @@ def resolver_gauss_manual(A_in, B_in):
             fator = A[i, k] / A[k, k]
 
             # Atualiza a linha i da matriz A: L_i = L_i - fator * L_k
-            # (Começamos de k para economizar, pois antes é tudo zero)
             A[i, k:] = A[i, k:] - fator * A[k, k:]
 
             # Atualiza o vetor b também
@@ -161,7 +157,6 @@ class AppMinas(tk.Tk):
                 if not val_b_str: val_b_str = "0"
                 B[i] = float(val_b_str)
 
-            # AQUI CHAMAMOS NOSSA FUNÇÃO MANUAL EM VEZ DE NP.LINALG.SOLVE
             x = resolver_gauss_manual(A, B)
 
             texto = "SOLUÇÃO:\n\n"
