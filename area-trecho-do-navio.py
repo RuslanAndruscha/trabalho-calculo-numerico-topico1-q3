@@ -5,154 +5,168 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-class ShipAreaApp:
+class NavioInterativoApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Cálculo de Área Naval - Integração Numérica")
-        self.root.state('zoomed')  # Abre em tela cheia/maximizado
+        self.root.title("Calculadora de Seção Mestra - Navio (Interativo)")
+        self.root.state('zoomed')  # Inicia Maximizado
 
-        # --- DADOS DO PROBLEMA (Conforme imagem) ---
-        # Alturas (y) em metros, de cima (A) para baixo (A7)
-        self.larguras = np.array([3.00, 2.92, 2.75, 2.52, 2.30, 1.84, 0.92, 0.00])
-        self.h = 0.4  # Espaçamento vertical (passo)
+        # --- VALORES INICIAIS DA QUESTÃO ---
+        # Passo (h) = 0.4m
+        self.default_h = "0.4"
+        # Larguras fornecidas na imagem (separadas por vírgula para facilitar edição)
+        self.default_y = "3.00, 2.92, 2.75, 2.52, 2.30, 1.84, 0.92, 0.00"
 
-        # Configuração de Estilos
-        self.setup_styles()
+        self.setup_ui()
 
-        # Layout Principal
-        self.create_widgets()
+        # Executa o cálculo inicial assim que abre o programa
+        self.calcular_e_plotar()
 
-        # Plotar gráfico inicial
-        self.plot_profile()
+    def setup_ui(self):
+        # --- Painel Esquerdo (Controles) ---
+        panel_left = ttk.Frame(self.root, padding=20)
+        panel_left.pack(side=tk.LEFT, fill=tk.Y)
 
-    def setup_styles(self):
-        style = ttk.Style()
-        style.configure("TLabel", font=("Arial", 12))
-        style.configure("Header.TLabel", font=("Arial", 18, "bold"))
-        style.configure("Result.TLabel", font=("Courier New", 14, "bold"), foreground="#003366")
-        style.configure("TButton", font=("Arial", 12, "bold"))
+        ttk.Label(panel_left, text="Parâmetros de Entrada", font=("Arial", 16, "bold")).pack(pady=(0, 20))
 
-    def create_widgets(self):
-        # Frame Esquerdo (Controles e Resultados)
-        left_frame = ttk.Frame(self.root, padding="20")
-        left_frame.pack(side=tk.LEFT, fill=tk.Y)
+        # Entrada do Passo (h)
+        ttk.Label(panel_left, text="Passo Vertical (h) em metros:", font=("Arial", 12)).pack(anchor="w")
+        self.ent_h = ttk.Entry(panel_left, font=("Arial", 12))
+        self.ent_h.insert(0, self.default_h)  # Preenche valor inicial
+        self.ent_h.pack(fill=tk.X, pady=(5, 15))
 
-        # Título
-        ttk.Label(left_frame, text="Seção Transversal do Navio", style="Header.TLabel").pack(pady=(0, 20))
+        # Entrada das Larguras (y)
+        ttk.Label(panel_left, text="Larguras (y) separadas por vírgula:", font=("Arial", 12)).pack(anchor="w")
+        ttk.Label(panel_left, text="(Do topo até a quilha)", font=("Arial", 9, "italic"), foreground="gray").pack(
+            anchor="w")
 
-        # Exibição dos Dados
-        data_frame = ttk.LabelFrame(left_frame, text="Dados de Entrada", padding="10")
-        data_frame.pack(fill=tk.X, pady=10)
-
-        ttk.Label(data_frame, text=f"Passo (h): {self.h} m").pack(anchor="w")
-        ttk.Label(data_frame, text=f"Larguras (m): {list(self.larguras)}").pack(anchor="w", pady=5)
-        ttk.Label(data_frame, text=f"Nº de Intervalos: {len(self.larguras) - 1}").pack(anchor="w")
+        self.ent_y = tk.Text(panel_left, height=4, font=("Arial", 12), width=30)
+        self.ent_y.insert(tk.END, self.default_y)  # Preenche valores iniciais
+        self.ent_y.pack(fill=tk.X, pady=(5, 20))
 
         # Botão Calcular
-        calc_btn = ttk.Button(left_frame, text="CALCULAR ÁREAS", command=self.calcular_areas)
-        calc_btn.pack(fill=tk.X, pady=20)
+        btn_calc = ttk.Button(panel_left, text="RECALCULAR", command=self.calcular_e_plotar)
+        btn_calc.pack(fill=tk.X, ipady=10)
 
-        # Área de Resultados
-        self.res_frame = ttk.LabelFrame(left_frame, text="Resultados Calculados", padding="15")
-        self.res_frame.pack(fill=tk.X, expand=True, anchor="n")
+        # --- Painel de Resultados ---
+        res_frame = ttk.LabelFrame(panel_left, text="Resultados", padding=15)
+        res_frame.pack(fill=tk.X, pady=30)
 
-        self.lbl_res_trap = ttk.Label(self.res_frame, text="Trapézios: ---", style="Result.TLabel")
-        self.lbl_res_trap.pack(pady=10, anchor="w")
+        self.lbl_trap = ttk.Label(res_frame, text="Trapézios: ---", font=("Courier New", 14, "bold"),
+                                  foreground="#003366")
+        self.lbl_trap.pack(anchor="w", pady=5)
 
-        self.lbl_res_simp = ttk.Label(self.res_frame, text="Simpson: ---", style="Result.TLabel")
-        self.lbl_res_simp.pack(pady=10, anchor="w")
+        self.lbl_simp = ttk.Label(res_frame, text="Simpson: ---", font=("Courier New", 14, "bold"),
+                                  foreground="#003366")
+        self.lbl_simp.pack(anchor="w", pady=5)
 
-        # Explicação Técnica
-        expl_text = (
-            "Nota sobre Simpson:\n"
-            "Como n=7 (ímpar), o método foi adaptado:\n"
-            "1. Simpson nos primeiros 6 intervalos (0 a 6).\n"
-            "2. Trapézio no último intervalo (6 a 7)."
-        )
-        ttk.Label(left_frame, text=expl_text, font=("Arial", 10, "italic"), foreground="gray").pack(side=tk.BOTTOM,
-                                                                                                    anchor="w")
+        self.lbl_info_simp = ttk.Label(res_frame, text="", font=("Arial", 9, "italic"), foreground="red",
+                                       wraplength=250)
+        self.lbl_info_simp.pack(anchor="w", pady=(10, 0))
 
-        # Frame Direito (Gráfico)
-        right_frame = ttk.Frame(self.root, padding="10")
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        # --- Painel Direito (Gráfico) ---
+        panel_right = ttk.Frame(self.root)
+        panel_right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
-        self.fig, self.ax = plt.subplots(figsize=(6, 6))
-        self.canvas = FigureCanvasTkAgg(self.fig, master=right_frame)
+        self.fig, self.ax = plt.subplots(figsize=(5, 5))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=panel_right)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-    def calcular_areas(self):
-        y = self.larguras
-        h = self.h
-        n = len(y) - 1  # Número de intervalos
+    def get_dados(self):
+        try:
+            h = float(self.ent_h.get().replace(',', '.'))
 
-        # --- 1. Regra dos Trapézios Repetida ---
-        # Area = h/2 * [y0 + 2*soma(meio) + yn]
-        soma_meio = np.sum(y[1:-1])
-        area_trap = (h / 2) * (y[0] + 2 * soma_meio + y[-1])
+            # Pega o texto, remove quebras de linha, substitui vírgula decimal se houver confusão
+            raw_y = self.ent_y.get("1.0", tk.END).strip()
+            # Divide por vírgula e converte para float array
+            y_list = [float(val.strip()) for val in raw_y.split(',')]
 
-        # --- 2. Regra de Simpson Mista ---
-        # Temos 7 intervalos. Simpson precisa de par.
-        # Dividimos em: Simpson (0 a 6) + Trapézio (6 a 7)
+            return h, np.array(y_list)
+        except ValueError:
+            messagebox.showerror("Erro de Formato",
+                                 "Certifique-se de usar números válidos.\nUse ponto (.) para decimais e vírgula (,) para separar as larguras.")
+            return None, None
 
-        # Parte A: Simpson (índices 0 a 6 -> 7 pontos)
-        y_simpson = y[0:7]
-        # Fórmula: h/3 * [y0 + 4*(ímpares) + 2*(pares) + yn]
-        # Índices relativos ao subconjunto:
-        # Extremos: 0 e 6
-        # Ímpares (coef 4): 1, 3, 5
-        # Pares (coef 2): 2, 4
-        soma_impares = y_simpson[1] + y_simpson[3] + y_simpson[5]
-        soma_pares = y_simpson[2] + y_simpson[4]
+    def calcular_e_plotar(self):
+        h, y = self.get_dados()
+        if h is None or y is None: return
 
-        area_part_simpson = (h / 3) * (y_simpson[0] + 4 * soma_impares + 2 * soma_pares + y_simpson[-1])
+        n_intervalos = len(y) - 1
 
-        # Parte B: Trapézio Simples (índices 6 a 7)
-        area_part_trap = (h / 2) * (y[6] + y[7])
+        if n_intervalos < 1:
+            messagebox.showerror("Erro", "É necessário pelo menos 2 pontos (1 intervalo).")
+            return
 
-        area_total_simpson = area_part_simpson + area_part_trap
+        # --- CÁLCULO 1: Regra dos Trapézios Repetida ---
+        # Formula: h/2 * (y_inicial + 2*soma_meio + y_final)
+        area_trap = (h / 2) * (y[0] + 2 * np.sum(y[1:-1]) + y[-1])
 
-        # Atualizar Interface
-        self.lbl_res_trap.config(text=f"Trapézios: {area_trap:.4f} m²")
-        self.lbl_res_simp.config(text=f"Simpson (+Trap): {area_total_simpson:.4f} m²")
+        # --- CÁLCULO 2: Regra de Simpson (Adaptativa) ---
+        area_simp = 0
+        info_msg = ""
 
-        self.plot_profile(fill=True)
+        # Verifica paridade dos intervalos
+        if n_intervalos % 2 == 0:
+            # Caso ideal: Número par de intervalos -> Simpson Puro
+            # Formula: h/3 * (y0 + 4*Impares + 2*Pares + yn)
+            soma_impares = np.sum(y[1:-1:2])  # Índices 1, 3, 5...
+            soma_pares = np.sum(y[2:-1:2])  # Índices 2, 4, 6...
+            area_simp = (h / 3) * (y[0] + 4 * soma_impares + 2 * soma_pares + y[-1])
+            info_msg = "Método: Simpson 1/3 Puro (N par)"
 
-    def plot_profile(self, fill=False):
+        else:
+            # Caso da questão: Número ímpar de intervalos -> Simpson Misto
+            # Estratégia: Simpson até o penúltimo ponto + Trapézio no último
+
+            # Parte A: Simpson (0 até n-1)
+            y_simp = y[:-1]  # Remove o último ponto
+            soma_impares = np.sum(y_simp[1:-1:2])
+            soma_pares = np.sum(y_simp[2:-1:2])
+            area_parte_simp = (h / 3) * (y_simp[0] + 4 * soma_impares + 2 * soma_pares + y_simp[-1])
+
+            # Parte B: Trapézio (último intervalo)
+            area_parte_trap = (h / 2) * (y[-2] + y[-1])
+
+            area_simp = area_parte_simp + area_parte_trap
+            info_msg = f"Atenção: N={n_intervalos} (ímpar).\nMétodo Misto aplicado:\nSimpson (0-{n_intervalos - 1}) + Trapézio ({n_intervalos - 1}-{n_intervalos})"
+
+        # Atualiza Labels
+        self.lbl_trap.config(text=f"Trapézios: {area_trap:.4f} m²")
+        self.lbl_simp.config(text=f"Simpson:   {area_simp:.4f} m²")
+        self.lbl_info_simp.config(text=info_msg)
+
+        # Plota Gráfico
+        self.plotar_casco(h, y)
+
+    def plotar_casco(self, h, y):
         self.ax.clear()
 
-        # Coordenadas para plotagem
-        # O eixo X será a largura, o eixo Y será a profundidade (negativa para desenhar para baixo)
-        profundidades = -np.arange(0, len(self.larguras) * self.h, self.h)
-        larguras = self.larguras
+        # Coordenadas de profundidade (0, -0.4, -0.8...)
+        profundidades = -np.arange(len(y)) * h
 
-        # Desenhar o perfil (lado direito)
-        self.ax.plot(larguras, profundidades, 'o-', color='blue', linewidth=2, label='Casco (Direito)')
+        # Desenha o perfil direito
+        self.ax.plot(y, profundidades, 'o-', color='navy', linewidth=2, label='Casco')
+        # Desenha o perfil esquerdo (espelhado) para visualização
+        self.ax.plot(-y, profundidades, 'b--', alpha=0.4)
+        # Linha de centro
+        self.ax.axvline(0, color='black', linestyle='-', linewidth=0.5)
 
-        # Desenhar linha de centro
-        self.ax.axvline(x=0, color='black', linestyle='--', linewidth=1)
+        # Preenchimento
+        self.ax.fill_betweenx(profundidades, 0, y, color='skyblue', alpha=0.6, label='Área Integrada')
+        self.ax.fill_betweenx(profundidades, 0, -y, color='skyblue', alpha=0.2)
 
-        # Desenhar espelho (lado esquerdo) para parecer um navio
-        self.ax.plot(-larguras, profundidades, 'b-', alpha=0.3)
-
-        # Preenchimento da área calculada
-        if fill:
-            self.ax.fill_betweenx(profundidades, 0, larguras, color='skyblue', alpha=0.5, label='Área Calculada')
-            self.ax.text(1.5, -1.5, "Área Aprox.\n~5.9 m²", fontsize=12, color='darkblue', fontweight='bold')
-
-        # Configurações do Gráfico
-        self.ax.set_title("Perfil da Seção Transversal")
+        # Estética
+        self.ax.set_title("Perfil da Seção Transversal", fontsize=14)
         self.ax.set_xlabel("Largura (m)")
         self.ax.set_ylabel("Profundidade (m)")
-        self.ax.grid(True, linestyle='--', alpha=0.6)
+        self.ax.grid(True, linestyle='--', alpha=0.5)
         self.ax.legend()
-
-        # Ajustar proporção para não distorcer
-        self.ax.set_aspect('equal')
+        self.ax.set_aspect('equal')  # Mantém a proporção visual correta
 
         self.canvas.draw()
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ShipAreaApp(root)
+    app = NavioInterativoApp(root)
     root.mainloop()
