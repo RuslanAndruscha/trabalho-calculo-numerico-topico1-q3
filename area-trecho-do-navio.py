@@ -8,18 +8,13 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 class NavioInterativoApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Calculadora de Seção Mestra - Navio (Interativo)")
-        self.root.state('zoomed')  # Inicia Maximizado
+        self.root.title("Calculadora de Seção Mestra - Navio")
+        self.root.state('zoomed')
 
         # --- VALORES INICIAIS DA QUESTÃO ---
-        # Passo (h) = 0.4m
         self.default_h = "0.4"
-        # Larguras fornecidas na imagem (separadas por vírgula para facilitar edição)
         self.default_y = "3.00, 2.92, 2.75, 2.52, 2.30, 1.84, 0.92, 0.00"
-
         self.setup_ui()
-
-        # Executa o cálculo inicial assim que abre o programa
         self.calcular_e_plotar()
 
     def setup_ui(self):
@@ -146,14 +141,11 @@ class NavioInterativoApp:
 
         # Desenha o perfil direito
         self.ax.plot(y, profundidades, 'o-', color='navy', linewidth=2, label='Casco')
-        # Desenha o perfil esquerdo (espelhado) para visualização
-        self.ax.plot(-y, profundidades, 'b--', alpha=0.4)
         # Linha de centro
         self.ax.axvline(0, color='black', linestyle='-', linewidth=0.5)
 
         # Preenchimento
         self.ax.fill_betweenx(profundidades, 0, y, color='skyblue', alpha=0.6, label='Área Integrada')
-        self.ax.fill_betweenx(profundidades, 0, -y, color='skyblue', alpha=0.2)
 
         # Estética
         self.ax.set_title("Perfil da Seção Transversal", fontsize=14)
