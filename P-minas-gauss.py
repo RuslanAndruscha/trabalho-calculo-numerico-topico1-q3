@@ -3,11 +3,6 @@ from tkinter import messagebox
 import numpy as np
 
 def resolver_gauss_manual(A_in, B_in):
-    """
-    Resolve Ax = B implementando manualmente a Eliminação Gaussiana
-    com Pivoteamento Parcial.
-    """
-    # Trabalhamos com cópias para não alterar os dados originais da interface
     A = np.copy(A_in)
     b = np.copy(B_in)
     n = len(b)
@@ -16,7 +11,6 @@ def resolver_gauss_manual(A_in, B_in):
     for k in range(n - 1):
         # 1.1 Pivoteamento Parcial:
         # Encontrar a linha com o maior valor absoluto na coluna atual (k)
-        # Isso evita divisão por zero e melhora a precisão.
         indice_max = k
         valor_max = abs(A[k, k])
 
@@ -48,7 +42,7 @@ def resolver_gauss_manual(A_in, B_in):
     if A[n - 1, n - 1] == 0:
         raise ValueError("O sistema não tem solução única (Matriz Singular).")
 
-    # --- ETAPA 2: Substituição Regressiva (Back-substitution) ---
+    # --- ETAPA 2: Substituição Regressiva ---
     x = np.zeros(n)
 
     # Começa do último índice (n-1) e vai até 0, voltando de 1 em 1
@@ -64,7 +58,7 @@ def resolver_gauss_manual(A_in, B_in):
     return x
 
 
-# --- Interface Gráfica (Mantida igual) ---
+# --- Interface Gráfica ---
 
 class AppMinas(tk.Tk):
     def __init__(self):
